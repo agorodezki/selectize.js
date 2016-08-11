@@ -20,6 +20,9 @@
 *  Fix detection of Validity API, we had false negatives before.
 
    *Jonathan Allard* (@joallard)
+*  New feature: allow to disable single options or complete optgroups
+
+   *@zeitiger*
 
 *  Fix open keyboard bug under iOS after closing selection (#1127)
 
