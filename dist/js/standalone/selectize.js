@@ -1312,7 +1312,7 @@
 			self.$dropdown         = $dropdown;
 			self.$dropdown_content = $dropdown_content;
 	
-			$dropdown.on('mouseenter mousedown click', '[data-disabled]>[data-selectable]', function(e) { e.stopImmediatePropagation(); });
+			$dropdown.on('mouseenter mousedown click', '[data-disabled]', function(e) { return false; });
 			$dropdown.on('mouseenter', '[data-selectable]', function() { return self.onOptionHover.apply(self, arguments); });
 			$dropdown.on('mousedown click', '[data-selectable]', function() { return self.onOptionSelect.apply(self, arguments); });
 			watchChildEvent($control, 'mousedown', '*:not(input)', function() { return self.onItemSelect.apply(self, arguments); });
@@ -3221,6 +3221,8 @@
 			if (templateName === 'option' || templateName === 'option_create') {
 				if (!data[self.settings.disabledField]) {
 					html.attr('data-selectable', '');
+				} else {
+					html.attr('data-disabled', '');
 				}
 			}
 			else if (templateName === 'optgroup') {
