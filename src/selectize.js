@@ -187,7 +187,7 @@ $.extend(Selectize.prototype, {
 		self.$dropdown         = $dropdown;
 		self.$dropdown_content = $dropdown_content;
 
-		$dropdown.on('mouseenter mousedown click', '[data-disabled]', function(e) { return false; });
+		$dropdown.on('mouseenter mousedown click', '[data-disabled]', function() { return false; });
 		$dropdown.on('mouseenter', '[data-selectable]', function() { return self.onOptionHover.apply(self, arguments); });
 		$dropdown.on('mousedown click', '[data-selectable]', function() { return self.onOptionSelect.apply(self, arguments); });
 		watchChildEvent($control, 'mousedown', '*:not(input)', function() { return self.onItemSelect.apply(self, arguments); });
@@ -364,6 +364,7 @@ $.extend(Selectize.prototype, {
 		// necessary for mobile webkit devices (manual focus triggering
 		// is ignored unless invoked within a click event)
 		if (!self.isFocused) {
+            self.focus();
 			e.preventDefault();
 		}
 	},
@@ -998,8 +999,8 @@ $.extend(Selectize.prototype, {
 		self.ignoreFocus = true;
 		self.$control_input[0].focus();
 		window.setTimeout(function() {
-			self.ignoreFocus = false;
-			self.onFocus();
+            self.ignoreFocus = false;
+            self.onFocus();
 		}, 0);
 	},
 
@@ -1804,9 +1805,13 @@ $.extend(Selectize.prototype, {
 		var self = this;
 		var trigger = self.isOpen;
 
-		if (self.settings.mode === 'single' && self.items.length) {
-			self.hideInput();
-			self.$control_input.blur(); // close keyboard on iOS
+		if (self.settings.mode === 'single') {
+			if (self.items.length) {
+                self.hideInput();
+            }
+            window.setTimeout(function() {
+                self.blur(); // close keyboard on iOS
+            }, 100);
 		}
 
 		self.isOpen = false;
