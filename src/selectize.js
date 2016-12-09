@@ -1223,7 +1223,7 @@ $.extend(Selectize.prototype, {
 			if (triggerDropdown && !self.isOpen) { self.open(); }
 		} else {
 			self.setActiveOption(null);
-			if (triggerDropdown && self.isOpen) { self.close(); }
+			if (triggerDropdown && self.isOpen && query === '') { self.close(); }
 		}
 	},
 
