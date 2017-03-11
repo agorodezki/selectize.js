@@ -635,7 +635,7 @@
 }));
 
 /**
- * selectize.js (v0.12.4)
+ * selectize.js (v0.12.5)
  * Copyright (c) 2013–2015 Brian Reavis & contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
@@ -670,6 +670,8 @@
 	
 		var highlight = function(node) {
 			var skip = 0;
+			// Wrap matching part of text node with highlighting <span>, e.g.
+			// Soccer  ->  <span class="highlight">Soc</span>cer  for regex = /soc/i
 			if (node.nodeType === 3) {
 				var pos = node.data.search(regex);
 				if (pos >= 0 && node.data.length > 0) {
@@ -683,7 +685,10 @@
 					middlebit.parentNode.replaceChild(spannode, middlebit);
 					skip = 1;
 				}
-			} else if (node.nodeType === 1 && node.childNodes && !/(script|style)/i.test(node.tagName)) {
+			} 
+			// Recurse element node, looking for child text nodes to highlight, unless element 
+			// is childless, <script>, <style>, or already highlighted: <span class="hightlight">
+			else if (node.nodeType === 1 && node.childNodes && !/(script|style)/i.test(node.tagName) && ( node.className !== 'highlight' || node.tagName !== 'SPAN' )) {
 				for (var i = 0; i < node.childNodes.length; ++i) {
 					i += highlight(node.childNodes[i]);
 				}
@@ -1242,8 +1247,6 @@
 			var $dropdown_content;
 			var $dropdown_parent;
 			var inputMode;
-			var timeout_blur;
-			var timeout_focus;
 			var classes;
 			var classes_plugins;
 			var inputId;
@@ -1253,12 +1256,13 @@
 	
 			$wrapper          = $('<div>').addClass(settings.wrapperClass).addClass(classes).addClass(inputMode);
 			$control          = $('<div>').addClass(settings.inputClass).addClass('items').appendTo($wrapper);
-			$control_input    = $('<input type="text" autocomplete="off" />').appendTo($control).attr('tabindex', $input.is(':disabled') ? '-1' : self.tabIndex);
+			$control_input    = $('<input type="' + settings.searchInputType + '" autocomplete="off" />')
+				.appendTo($control).attr('tabindex', $input.is(':disabled') ? '-1' : self.tabIndex);
 			$dropdown_parent  = $(settings.dropdownParent || $wrapper);
 			$dropdown         = $('<div>').addClass(settings.dropdownClass).addClass(inputMode).hide().appendTo($dropdown_parent);
 			$dropdown_content = $('<div>').addClass(settings.dropdownContentClass).appendTo($dropdown);
 	
-			if(inputId = $input.attr('id')) {
+			if (inputId = $input.attr('id')) {
 				$control_input.attr('id', inputId + '-selectized');
 				$("label[for='"+inputId+"']").attr('for', inputId + '-selectized');
 			}
@@ -1305,14 +1309,14 @@
 			self.$dropdown         = $dropdown;
 			self.$dropdown_content = $dropdown_content;
 	
+			$dropdown.on('mouseenter mousedown click', '[data-disabled]>[data-selectable]', function(e) { e.stopImmediatePropagation(); return false; });
 			$dropdown.on('mouseenter', '[data-selectable]', function() { return self.onOptionHover.apply(self, arguments); });
 			$dropdown.on('mousedown click', '[data-selectable]', function() { return self.onOptionSelect.apply(self, arguments); });
 			watchChildEvent($control, 'mousedown', '*:not(input)', function() { return self.onItemSelect.apply(self, arguments); });
 			autoGrow($control_input);
 	
 			$control.on({
-				mousedown : function() { return self.onMouseDown.apply(self, arguments); },
-				click     : function() { return self.onClick.apply(self, arguments); }
+				mousedown : function() { return self.onMouseDown.apply(self, arguments); }
 			});
 	
 			$control_input.on({
@@ -1339,7 +1343,7 @@
 			});
 	
 			$document.on('mousedown' + eventNS, function(e) {
-				if (self.isFocused) {
+				if (self.isOpen) {
 					// prevent events on the dropdown scrollbar from causing the control to blur
 					if (e.target === self.$dropdown[0] || e.target.parentNode === self.$dropdown[0]) {
 						return false;
@@ -1470,24 +1474,6 @@
 	
 		/**
 		 * Triggered when the main control element
-		 * has a click event.
-		 *
-		 * @param {object} e
-		 * @return {boolean}
-		 */
-		onClick: function(e) {
-			var self = this;
-	
-			// necessary for mobile webkit devices (manual focus triggering
-			// is ignored unless invoked within a click event)
-			if (!self.isFocused) {
-				self.focus();
-				e.preventDefault();
-			}
-		},
-	
-		/**
-		 * Triggered when the main control element
 		 * has a mouse down event.
 		 *
 		 * @param {object} e
@@ -1498,25 +1484,40 @@
 			var defaultPrevented = e.isDefaultPrevented();
 			var $target = $(e.target);
 	
-			if (self.isFocused) {
-				// retain focus by preventing native handling. if the
-				// event target is the input it should not be modified.
-				// otherwise, text selection within the input won't work.
-				if (e.target !== self.$control_input[0]) {
-					if (self.settings.mode === 'single') {
-						// toggle dropdown
-						self.isOpen ? self.close() : self.open();
-					} else if (!defaultPrevented) {
+			// retain focus by preventing native handling. if the
+			// event target is the input it should not be modified.
+			// otherwise, text selection within the input won't work.
+			if ($target !== self.$control_input[0]) {
+				if (self.settings.mode === 'single' && self.settings.noFocusOnFirstClick) {
+					// toggle dropdown
+					if (self.isOpen) {
+						if (self.isFocused) {
+							self.blur();
+							self.close();
+						} else {
+							if (!defaultPrevented) {
+								window.setTimeout(function () {
+									self.focus();
+								}, 0);
+							}
+						}
+					} else {
+						self.showInput();
 						self.setActiveItem(null);
+						self.refreshOptions();
+						self.open();
 					}
-					return false;
-				}
-			} else {
-				// give control focus
-				if (!defaultPrevented) {
-					window.setTimeout(function() {
-						self.focus();
-					}, 0);
+				} else {
+					if (self.isOpen) {
+						self.blur();
+						self.close();
+					} else {
+						if (!defaultPrevented) {
+							window.setTimeout(function () {
+								self.focus();
+							}, 0);
+						}
+					}
 				}
 			}
 		},
@@ -1568,6 +1569,11 @@
 		 * @returns {boolean}
 		 */
 		onKeyPress: function(e) {
+				this.androidFix = null;
+	
+				this._onKeyPress(e);
+			},
+		_onKeyPress: function(e) {
 			if (this.isLocked) return e && e.preventDefault();
 			var character = String.fromCharCode(e.keyCode || e.which);
 			if (this.settings.create && this.settings.mode === 'multi' && character === this.settings.delimiter) {
@@ -1584,6 +1590,12 @@
 		 * @returns {boolean}
 		 */
 		onKeyDown: function(e) {
+				this.androidFix = { value: this.$control_input.val(), start: this.$control_input[0].selectionStart, end: this.$control_input[0].selectionEnd };
+	
+				this._onKeyDown(e);
+			},
+	
+		_onKeyDown: function(e) {
 			var isInput = e.target === this.$control_input[0];
 			var self = this;
 	
@@ -1675,6 +1687,47 @@
 		 * @returns {boolean}
 		 */
 		onKeyUp: function(e) {
+				var self = this;
+				// save current value
+				var val = $(self.$control_input).val();
+	
+				// will fix Android issue by emulating keydown and keypress with correct charcode
+				if(e.keyCode == 229 && self.androidFix !== null) {
+					if(self.androidFix.value == '' && val == '') { // backspace on empty, unrecognized (229) unprintable character, must be backspace
+						self._onKeyDown( { keyCode: KEY_BACKSPACE, preventDefault: function() {}, stopPropagation: function() {} } );
+						self._onKeyPress( { keyCode: KEY_BACKSPACE, preventDefault: function() {}, stopPropagation: function() {} } );
+					} else {
+						// get existing value updated with selection removed if a selection was present
+						var updateValue = self.androidFix.value.substring(0, self.androidFix.start) + self.androidFix.value.substring(self.androidFix.end);
+						// save caret position in new value
+						var start = self.$control_input[0].selectionStart;
+						// reset field to before keyup
+						self.$control_input.val(self.androidFix.value);
+	
+						var prevent = false;
+	
+						if(updateValue.length >= val.length) { // unrecognized unprintable character or characters have been removed, must be backspace (or delete on tablet?)
+							self._onKeyDown( { keyCode: KEY_BACKSPACE, preventDefault: function() { prevent = true; }, stopPropagation: function() {} } );
+							self._onKeyPress( { keyCode: KEY_BACKSPACE, preventDefault: function() { prevent = true; }, stopPropagation: function() {} } );
+						} else if(updateValue.length < val.length) { // new character appared
+							for(var i = 0; i < val.length; i++) { // find the new character, by finding the difference
+								if(i >= updateValue.length || updateValue[i] != val[i]) {
+									self._onKeyDown( { keyCode: val[i].charCodeAt(0), preventDefault: function() { prevent = true; }, stopPropagation: function() {} } );
+									self._onKeyPress( { keyCode: val[i].charCodeAt(0), preventDefault: function() { prevent = true; }, stopPropagation: function() {} } );
+									break;
+								}
+							}
+						}
+	
+						if(!prevent) { // if preventDefault was not triggered then reset to saved state
+							self.$control_input.val(val);
+							self.$control_input[0].setSelectionRange(start,start);
+						}
+					}
+				}
+				this._onKeyUp(e);
+			},
+		_onKeyUp: function(e) {
 			var self = this;
 	
 			if (self.isLocked) return e && e.preventDefault();
@@ -1734,6 +1787,10 @@
 				self.refreshOptions(!!self.settings.openOnFocus);
 			}
 	
+			if (self.settings.openOnFocus) {
+				self.open();
+			}
+	
 			self.refreshState();
 		},
 	
@@ -1745,8 +1802,8 @@
 		 */
 		onBlur: function(e, dest) {
 			var self = this;
-			if (!self.isFocused) return;
-			self.isFocused = false;
+			if (!self.isOpen) return;
+			self.isOpen = false;
 	
 			if (self.ignoreFocus) {
 				return;
@@ -2075,6 +2132,7 @@
 		 * @param {Element} dest
 		 */
 		blur: function(dest) {
+			this.isFocused = false;
 			this.$control_input[0].blur();
 			this.onBlur(null, dest);
 		},
@@ -2288,7 +2346,7 @@
 				if (triggerDropdown && !self.isOpen) { self.open(); }
 			} else {
 				self.setActiveOption(null);
-				if (triggerDropdown && self.isOpen) { self.close(); }
+				if (triggerDropdown && self.isOpen) { self.close(true); }
 			}
 		},
 	
@@ -2854,7 +2912,7 @@
 			var self = this;
 	
 			if (self.isLocked || self.isOpen || (self.settings.mode === 'multi' && self.isFull())) return;
-			self.focus();
+	
 			self.isOpen = true;
 			self.refreshState();
 			self.$dropdown.css({visibility: 'hidden', display: 'block'});
@@ -2866,13 +2924,19 @@
 		/**
 		 * Closes the autocomplete dropdown menu.
 		 */
-		close: function() {
+		close: function(noBlur) {
 			var self = this;
 			var trigger = self.isOpen;
 	
-			if (self.settings.mode === 'single' && self.items.length) {
-				self.hideInput();
-				self.$control_input.blur(); // close keyboard on iOS
+			if (self.settings.mode === 'single') {
+				if (self.items.length) {
+					self.hideInput();
+				}
+				if (!noBlur) {
+					window.setTimeout(function () {
+						self.blur(); // close keyboard on iOS
+					}, 100);
+				}
 			}
 	
 			self.isOpen = false;
@@ -3211,11 +3275,18 @@
 	
 			// add mandatory attributes
 			if (templateName === 'option' || templateName === 'option_create') {
-				html.attr('data-selectable', '');
+				if (!data[self.settings.disabledField]) {
+					html.attr('data-selectable', '');
+				} else {
+					html.attr('data-disabled', '');
+				}
 			}
 			else if (templateName === 'optgroup') {
 				id = data[self.settings.optgroupValueField] || '';
 				html.attr('data-group', id);
+				if(data[self.settings.disabledField]) {
+					html.attr('data-disabled', '');
+				}
 			}
 			if (templateName === 'option' || templateName === 'item') {
 				html.attr('data-value', value || '');
@@ -3280,6 +3351,7 @@
 		createFilter: null,
 		highlight: true,
 		openOnFocus: true,
+		noFocusOnFirstClick: false,
 		maxOptions: 1000,
 		maxItems: null,
 		hideSelected: null,
@@ -3297,6 +3369,7 @@
 		optgroupField: 'optgroup',
 		valueField: 'value',
 		labelField: 'text',
+		disabledField: 'disabled',
 		optgroupLabelField: 'label',
 		optgroupValueField: 'value',
 		lockOptgroupOrder: false,
@@ -3304,6 +3377,7 @@
 		sortField: '$order',
 		searchField: ['text'],
 		searchConjunction: 'and',
+		searchInputType : 'text',
 	
 		mode: null,
 		wrapperClass: 'selectize-control',
@@ -3353,6 +3427,7 @@
 		var attr_data            = settings.dataAttr;
 		var field_label          = settings.labelField;
 		var field_value          = settings.valueField;
+		var field_disabled       = settings.disabledField;
 		var field_optgroup       = settings.optgroupField;
 		var field_optgroup_label = settings.optgroupLabelField;
 		var field_optgroup_value = settings.optgroupValueField;
@@ -3364,6 +3439,8 @@
 		 * @param {object} settings_element
 		 */
 		var init_textbox = function($input, settings_element) {
+			settings_element.searchInputType = $input.prop('type');
+	
 			var i, n, values, option;
 	
 			var data_raw = $input.attr(attr_data);
@@ -3433,6 +3510,7 @@
 				var option             = readData($option) || {};
 				option[field_label]    = option[field_label] || $option.text();
 				option[field_value]    = option[field_value] || value;
+				option[field_disabled] = option[field_disabled] || $option.prop('disabled');
 				option[field_optgroup] = option[field_optgroup] || group;
 	
 				optionsMap[value] = option;
@@ -3453,6 +3531,7 @@
 					optgroup = readData($optgroup) || {};
 					optgroup[field_optgroup_label] = id;
 					optgroup[field_optgroup_value] = id;
+					optgroup[field_disabled] = $optgroup.prop('disabled');
 					settings_element.optgroups.push(optgroup);
 				}
 	
@@ -3609,8 +3688,8 @@
 			return index >= 0 && index < $options.length ? $options.eq(index) : $();
 		};
 	
-		this.onKeyDown = (function() {
-			var original = self.onKeyDown;
+		this._onKeyDown = (function() {
+			var original = self._onKeyDown;
 			return function(e) {
 				var index, $option, $options, $optgroup;
 	
@@ -3687,6 +3766,7 @@
 	
 	});
 	
+	
 	Selectize.define('remove_button', function(options) {
 		options = $.extend({
 				label     : '&times;',
@@ -3710,7 +3790,8 @@
 				 * @return {string}
 				 */
 				var append = function(html_container, html_element) {
-					return html_container + html_element;
+					return $('<span>').append(html_container)
+						.append(html_element);
 				};
 	
 				thisRef.setup = (function() {
@@ -3803,8 +3884,8 @@
 			return option[this.settings.labelField];
 		};
 	
-		this.onKeyDown = (function() {
-			var original = self.onKeyDown;
+		this._onKeyDown = (function() {
+			var original = self._onKeyDown;
 			return function(e) {
 				var index, option;
 				if (e.keyCode === KEY_BACKSPACE && this.$control_input.val() === '' && !this.$activeItems.length) {
