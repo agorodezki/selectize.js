@@ -33,6 +33,7 @@ var Selectize = function($input, settings) {
 		ignoreFocus      : false,
 		ignoreBlur       : false,
 		ignoreHover      : false,
+		triggerFocus     : false,
 		hasOptions       : false,
 		currentResults   : null,
 		lastValue        : '',
@@ -191,7 +192,8 @@ $.extend(Selectize.prototype, {
 		autoGrow($control_input);
 
 		$control.on({
-			mousedown : function() { return self.onMouseDown.apply(self, arguments); }
+			mousedown : function() { return self.onMouseDown.apply(self, arguments); },
+            click     : function() { return self.onClick.apply(self, arguments); }
 		});
 
 		$control_input.on({
@@ -218,17 +220,17 @@ $.extend(Selectize.prototype, {
 		});
 
 		$document.on('mousedown' + eventNS, function(e) {
-			if (self.isOpen) {
-				// prevent events on the dropdown scrollbar from causing the control to blur
-				if (e.target === self.$dropdown[0] || e.target.parentNode === self.$dropdown[0]) {
-					return false;
-				}
-				// blur on click outside
-				if (!self.$control.has(e.target).length && e.target !== self.$control[0]) {
-					self.blur(e.target);
-				}
-			}
-		});
+            if (self.isOpen) {
+                // prevent events on the dropdown scrollbar from causing the control to blur
+                if (e.target === self.$dropdown[0] || e.target.parentNode === self.$dropdown[0]) {
+                    return false;
+                }
+                // blur on click outside
+                if (!self.$control.has(e.target).length && e.target !== self.$control[0]) {
+                    self.blur(e.target);
+                }
+            }
+        });
 
 		$window.on(['scroll' + eventNS, 'resize' + eventNS].join(' '), function() {
 			if (self.isOpen) {
@@ -347,6 +349,29 @@ $.extend(Selectize.prototype, {
 		}
 	},
 
+    /**
+     * Triggered when the main control element
+     * has a click event.
+     *
+     * @param {object} e
+     * @return {boolean}
+     */
+    onClick: function(e) {
+        var self = this;
+        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        // necessary for mobile webkit devices (manual focus triggering
+        // is ignored unless invoked within a click event)
+        if (isIOS && !self.isFocused && !self.settings.noFocus) {
+            self.focus();
+            e.preventDefault();
+        } else if (isIOS && !self.isFocused && self.triggerFocus && self.settings.noFocus) {
+        	self.triggerFocus = false;
+			self.focus();
+			e.preventDefault();
+		}
+    },
+
 	/**
 	 * Triggered when the main control element
 	 * has a mouse down event.
@@ -363,25 +388,26 @@ $.extend(Selectize.prototype, {
 		// event target is the input it should not be modified.
 		// otherwise, text selection within the input won't work.
 		if ($target !== self.$control_input[0]) {
-			if (self.settings.mode === 'single' && self.settings.noFocusOnFirstClick) {
+			if (self.settings.mode === 'single' && self.settings.noFocus) {
 				// toggle dropdown
-				if (self.isOpen) {
-					if (self.isFocused) {
-						self.blur();
-						self.close();
-					} else {
-						if (!defaultPrevented) {
-							window.setTimeout(function () {
-								self.focus();
-							}, 0);
-						}
-					}
-				} else {
-					self.showInput();
-					self.setActiveItem(null);
-					self.refreshOptions();
-					self.open();
-				}
+                if (self.isOpen) {
+                    if (self.isFocused) {
+                        self.blur();
+                        self.close();
+                    } else {
+                        self.triggerFocus = true;
+                        if (!defaultPrevented) {
+                            window.setTimeout(function () {
+                                self.focus();
+                            }, 0);
+                        }
+                    }
+                } else {
+                    self.showInput();
+                    self.setActiveItem(null);
+                    self.refreshOptions();
+                    self.open();
+                }
 			} else {
 				if (self.isOpen) {
 					self.blur();
@@ -990,12 +1016,12 @@ $.extend(Selectize.prototype, {
 	 * Gives the control focus.
 	 */
 	focus: function() {
-		var self = this;
-		if (self.isDisabled) return;
+        var self = this;
+        if (self.isDisabled) return;
 
 		self.ignoreFocus = true;
 		self.$control_input[0].focus();
-		window.setTimeout(function() {
+		window.setTimeout(function () {
 			self.ignoreFocus = false;
 			self.onFocus();
 		}, 0);
