@@ -393,7 +393,6 @@ $.extend(Selectize.prototype, {
                 if (self.isOpen) {
                     if (self.isFocused) {
                         self.blur();
-                        self.close();
                     } else {
                         self.triggerFocus = true;
                         if (!defaultPrevented) {
@@ -411,7 +410,6 @@ $.extend(Selectize.prototype, {
 			} else {
 				if (self.isOpen) {
 					self.blur();
-					self.close();
 				} else {
 					if (!defaultPrevented) {
 						window.setTimeout(function () {
@@ -704,7 +702,6 @@ $.extend(Selectize.prototype, {
 	onBlur: function(e, dest) {
 		var self = this;
 		if (!self.isOpen) return;
-		self.isOpen = false;
 
 		if (self.ignoreFocus) {
 			return;
