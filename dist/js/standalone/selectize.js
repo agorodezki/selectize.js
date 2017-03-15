@@ -1518,7 +1518,6 @@
 	                if (self.isOpen) {
 	                    if (self.isFocused) {
 	                        self.blur();
-	                        self.close();
 	                    } else {
 	                        self.triggerFocus = true;
 	                        if (!defaultPrevented) {
@@ -1536,7 +1535,6 @@
 				} else {
 					if (self.isOpen) {
 						self.blur();
-						self.close();
 					} else {
 						if (!defaultPrevented) {
 							window.setTimeout(function () {
@@ -1829,7 +1827,6 @@
 		onBlur: function(e, dest) {
 			var self = this;
 			if (!self.isOpen) return;
-			self.isOpen = false;
 	
 			if (self.ignoreFocus) {
 				return;
