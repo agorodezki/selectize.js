@@ -76,6 +76,10 @@ var Selectize = function($input, settings) {
 	if (typeof self.settings.hideSelected !== 'boolean') {
 		self.settings.hideSelected = self.settings.mode === 'multi';
 	}
+	var type = $input.data('type');
+	if (type) {
+		self.settings.searchInputType = type;
+	}
 
 	self.initializePlugins(self.settings.plugins);
 	self.setupCallbacks();
