@@ -1846,7 +1846,9 @@ $.extend(Selectize.prototype, {
 		self.setActiveOption(null);
 		self.refreshState();
 
-		if (trigger) self.trigger('dropdown_close', self.$dropdown);
+        if (!noBlur) {
+            if (trigger) self.trigger('dropdown_close', self.$dropdown);
+        }
 	},
 
 	/**
