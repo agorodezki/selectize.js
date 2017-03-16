@@ -605,7 +605,7 @@ $.extend(Selectize.prototype, {
 					// save caret position in new value
 					var start = self.$control_input[0].selectionStart;
 					// reset field to before keyup
-					self.$control_input.val(self.androidFix.value);
+					// self.$control_input.val(self.androidFix.value); // causes bug on samsung galaxy s4 (doubles first letter when you type)
 
 					var prevent = false;
 
