@@ -1158,6 +1158,7 @@
 			ignoreFocus      : false,
 			ignoreBlur       : false,
 			ignoreHover      : false,
+			triggerFocus     : false,
 			hasOptions       : false,
 			currentResults   : null,
 			lastValue        : '',
@@ -1199,6 +1200,10 @@
 		self.settings.mode = self.settings.mode || (self.settings.maxItems === 1 ? 'single' : 'multi');
 		if (typeof self.settings.hideSelected !== 'boolean') {
 			self.settings.hideSelected = self.settings.mode === 'multi';
+		}
+		var type = $input.data('type');
+		if (type) {
+			self.settings.searchInputType = type;
 		}
 	
 		self.initializePlugins(self.settings.plugins);
@@ -1316,7 +1321,8 @@
 			autoGrow($control_input);
 	
 			$control.on({
-				mousedown : function() { return self.onMouseDown.apply(self, arguments); }
+				mousedown : function() { return self.onMouseDown.apply(self, arguments); },
+	            click     : function() { return self.onClick.apply(self, arguments); }
 			});
 	
 			$control_input.on({
@@ -1343,17 +1349,17 @@
 			});
 	
 			$document.on('mousedown' + eventNS, function(e) {
-				if (self.isOpen) {
-					// prevent events on the dropdown scrollbar from causing the control to blur
-					if (e.target === self.$dropdown[0] || e.target.parentNode === self.$dropdown[0]) {
-						return false;
-					}
-					// blur on click outside
-					if (!self.$control.has(e.target).length && e.target !== self.$control[0]) {
-						self.blur(e.target);
-					}
-				}
-			});
+	            if (self.isOpen) {
+	                // prevent events on the dropdown scrollbar from causing the control to blur
+	                if (e.target === self.$dropdown[0] || e.target.parentNode === self.$dropdown[0]) {
+	                    return false;
+	                }
+	                // blur on click outside
+	                if (!self.$control.has(e.target).length && e.target !== self.$control[0]) {
+	                    self.blur(e.target);
+	                }
+	            }
+	        });
 	
 			$window.on(['scroll' + eventNS, 'resize' + eventNS].join(' '), function() {
 				if (self.isOpen) {
@@ -1472,6 +1478,29 @@
 			}
 		},
 	
+	    /**
+	     * Triggered when the main control element
+	     * has a click event.
+	     *
+	     * @param {object} e
+	     * @return {boolean}
+	     */
+	    onClick: function(e) {
+	        var self = this;
+	        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+	
+	        // necessary for mobile webkit devices (manual focus triggering
+	        // is ignored unless invoked within a click event)
+	        if (isIOS && !self.isFocused && !self.settings.noFocus) {
+	            self.focus();
+	            e.preventDefault();
+	        } else if (isIOS && !self.isFocused && self.triggerFocus && self.settings.noFocus) {
+	        	self.triggerFocus = false;
+				self.focus();
+				e.preventDefault();
+			}
+	    },
+	
 		/**
 		 * Triggered when the main control element
 		 * has a mouse down event.
@@ -1488,29 +1517,28 @@
 			// event target is the input it should not be modified.
 			// otherwise, text selection within the input won't work.
 			if ($target !== self.$control_input[0]) {
-				if (self.settings.mode === 'single' && self.settings.noFocusOnFirstClick) {
+				if (self.settings.mode === 'single' && self.settings.noFocus) {
 					// toggle dropdown
-					if (self.isOpen) {
-						if (self.isFocused) {
-							self.blur();
-							self.close();
-						} else {
-							if (!defaultPrevented) {
-								window.setTimeout(function () {
-									self.focus();
-								}, 0);
-							}
-						}
-					} else {
-						self.showInput();
-						self.setActiveItem(null);
-						self.refreshOptions();
-						self.open();
-					}
+	                if (self.isOpen) {
+	                    if (self.isFocused) {
+	                        self.blur();
+	                    } else {
+	                        self.triggerFocus = true;
+	                        if (!defaultPrevented) {
+	                            window.setTimeout(function () {
+	                                self.focus();
+	                            }, 0);
+	                        }
+	                    }
+	                } else {
+	                    self.showInput();
+	                    self.setActiveItem(null);
+	                    self.refreshOptions();
+	                    self.open();
+	                }
 				} else {
 					if (self.isOpen) {
 						self.blur();
-						self.close();
 					} else {
 						if (!defaultPrevented) {
 							window.setTimeout(function () {
@@ -1702,7 +1730,7 @@
 						// save caret position in new value
 						var start = self.$control_input[0].selectionStart;
 						// reset field to before keyup
-						self.$control_input.val(self.androidFix.value);
+						// self.$control_input.val(self.androidFix.value); // causes bug on samsung galaxy s4 (doubles first letter when you type)
 	
 						var prevent = false;
 	
@@ -1803,7 +1831,6 @@
 		onBlur: function(e, dest) {
 			var self = this;
 			if (!self.isOpen) return;
-			self.isOpen = false;
 	
 			if (self.ignoreFocus) {
 				return;
@@ -2115,12 +2142,12 @@
 		 * Gives the control focus.
 		 */
 		focus: function() {
-			var self = this;
-			if (self.isDisabled) return;
+	        var self = this;
+	        if (self.isDisabled) return;
 	
 			self.ignoreFocus = true;
 			self.$control_input[0].focus();
-			window.setTimeout(function() {
+			window.setTimeout(function () {
 				self.ignoreFocus = false;
 				self.onFocus();
 			}, 0);
@@ -2944,7 +2971,9 @@
 			self.setActiveOption(null);
 			self.refreshState();
 	
-			if (trigger) self.trigger('dropdown_close', self.$dropdown);
+	        if (!noBlur) {
+	            if (trigger) self.trigger('dropdown_close', self.$dropdown);
+	        }
 		},
 	
 		/**
@@ -3351,7 +3380,7 @@
 		createFilter: null,
 		highlight: true,
 		openOnFocus: true,
-		noFocusOnFirstClick: false,
+		noFocus: false,
 		maxOptions: 1000,
 		maxItems: null,
 		hideSelected: null,
