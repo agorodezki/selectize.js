@@ -1,5 +1,5 @@
 /**
- * selectize.js (v0.12.5)
+ * selectize.js (v0.12.6)
  * Copyright (c) 2013–2015 Brian Reavis & contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
@@ -982,10 +982,10 @@
 		 * @returns {boolean}
 		 */
 		onKeyDown: function(e) {
-				this.androidFix = { value: this.$control_input.val(), start: this.$control_input[0].selectionStart, end: this.$control_input[0].selectionEnd };
+			this.androidFix = { value: this.$control_input.val(), start: this.$control_input[0].selectionStart, end: this.$control_input[0].selectionEnd };
 	
-				this._onKeyDown(e);
-			},
+			this._onKeyDown(e);
+		},
 	
 		_onKeyDown: function(e) {
 			var isInput = e.target === this.$control_input[0];
@@ -2332,7 +2332,12 @@
 	
 			self.isOpen = false;
 			self.$dropdown.hide();
-			self.setActiveOption(null);
+	
+	        if (self.settings.addActiveOptionOnClose && !self.isFull() && self.$activeOption && self.$activeOption.length > 0) {
+	            self.addItem(self.$activeOption.data('value'));
+	        }
+	
+	        self.setActiveOption(null);
 			self.refreshState();
 	
 	        if (!noBlur) {
@@ -2745,6 +2750,7 @@
 		highlight: true,
 		openOnFocus: true,
 		noFocus: false,
+		addActiveOptionOnClose: false,
 		maxOptions: 1000,
 		maxItems: null,
 		hideSelected: null,
