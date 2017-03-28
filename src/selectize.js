@@ -493,10 +493,10 @@ $.extend(Selectize.prototype, {
 	 * @returns {boolean}
 	 */
 	onKeyDown: function(e) {
-			this.androidFix = { value: this.$control_input.val(), start: this.$control_input[0].selectionStart, end: this.$control_input[0].selectionEnd };
+		this.androidFix = { value: this.$control_input.val(), start: this.$control_input[0].selectionStart, end: this.$control_input[0].selectionEnd };
 
-			this._onKeyDown(e);
-		},
+		this._onKeyDown(e);
+	},
 
 	_onKeyDown: function(e) {
 		var isInput = e.target === this.$control_input[0];
@@ -1843,7 +1843,12 @@ $.extend(Selectize.prototype, {
 
 		self.isOpen = false;
 		self.$dropdown.hide();
-		self.setActiveOption(null);
+
+        if (self.settings.addActiveOptionOnClose && !self.isFull() && self.$activeOption && self.$activeOption.length > 0) {
+            self.addItem(self.$activeOption.data('value'));
+        }
+
+        self.setActiveOption(null);
 		self.refreshState();
 
         if (!noBlur) {

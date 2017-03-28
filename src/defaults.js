@@ -14,6 +14,7 @@ Selectize.defaults = {
 	highlight: true,
 	openOnFocus: true,
 	noFocus: false,
+	addActiveOptionOnClose: false,
 	maxOptions: 1000,
 	maxItems: null,
 	hideSelected: null,
