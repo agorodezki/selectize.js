@@ -130,7 +130,7 @@
 				'</select>', {});
 
 				syn.click(label)
-					.delay(0, function() {
+					.delay(1, function() {
 						label.remove();
 						expect(test.selectize.isFocused).to.be.equal(true);
 						done();
